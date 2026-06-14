@@ -129,24 +129,11 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         return classify_windows_user_subpath(tail.as_str());
     }
 
-    extract_drive_path(&rendered)
-}
-
-fn extract_drive_path(rendered: &str) -> Option<SemanticPath> {
-    let norm = normalize_path(rendered);
-
-    let bytes = norm.as_bytes();
-    if bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/' {
-        let drive_letter = (bytes[0] as char).to_ascii_lowercase();
-        let tail = &norm[3..];
-        if !tail.is_empty() {
-            return Some(SemanticPath {
-                base: SemanticBase::WinDrive(drive_letter),
-                tail: tail.to_string(),
-            });
-        }
-    }
-    None
+    let (drive_letter, tail) = physical.windows_drive_tail()?;
+    Some(SemanticPath {
+        base: SemanticBase::WinDrive(drive_letter),
+        tail: tail.join("/"),
+    })
 }
 
 /// Convert a physical path inside a validated Wine prefix to a semantic path.

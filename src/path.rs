@@ -1066,6 +1066,34 @@ impl StrictPath {
         (!tail.is_empty()).then_some(tail)
     }
 
+    pub fn windows_drive_tail(&self) -> Option<(char, Vec<String>)> {
+        let Analysis {
+            drive: Some(Drive::Windows(drive)),
+            parts,
+        } = self.analyze()
+        else {
+            return None;
+        };
+
+        if parts.is_empty() {
+            return None;
+        }
+
+        let mut drive = drive.chars();
+        let Some(letter) = drive.next() else {
+            return None;
+        };
+        if drive.next() != Some(':') || drive.next().is_some() {
+            return None;
+        }
+
+        if !letter.is_ascii_alphabetic() {
+            return None;
+        }
+
+        Some((letter.to_ascii_lowercase(), parts))
+    }
+
     pub fn glob(&self) -> Vec<StrictPath> {
         self.glob_case_sensitive(Os::HOST.is_case_sensitive())
     }
@@ -1471,6 +1499,21 @@ mod tests {
             );
             assert_eq!(None, base.case_insensitive_tail_for(&StrictPath::new("D:/Users/Alice")));
             assert_eq!(None, base.case_insensitive_tail_for(&StrictPath::new("C:/Users/Bob")));
+        }
+
+        #[test]
+        fn can_determine_windows_drive_tail() {
+            assert_eq!(
+                Some(('c', vec!["Program Files".to_string(), "Game".to_string()])),
+                StrictPath::new("C:/Program Files/Game").windows_drive_tail(),
+            );
+            assert_eq!(
+                Some(('d', vec!["Game".to_string(), "save.dat".to_string()])),
+                StrictPath::new("d:/Game/save.dat").windows_drive_tail(),
+            );
+            assert_eq!(None, StrictPath::new("C:/").windows_drive_tail());
+            assert_eq!(None, StrictPath::new("/home/user/save.dat").windows_drive_tail());
+            assert_eq!(None, StrictPath::new("//server/share/save.dat").windows_drive_tail());
         }
     }
 
